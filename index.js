@@ -1,91 +1,97 @@
 const mineflayer = require('mineflayer')
 const express = require('express')
 
+let bot = null
+let reconnecting = false
+
 function startBot() {
-  console.log('[BOT] Starting connection to BaoHost...')
+  if (reconnecting) return // Prevent duplicate bots
+  reconnecting = true
   
-  const bot = mineflayer.createBot({
+  console.log('[BOT] Connecting to BaoHost...')
+  
+  bot = mineflayer.createBot({
     host: 'aegis-smp.playwithbao.com', 
     port: 35215,                       
-    username: 'Steve_092',             // PALITAN MO - wag AFK_Player
-    auth: 'offline',                   // Gawin 'microsoft' kung naka online-mode=true
-    version: '1.20.1',                 // PALITAN MO NG VERSION NG SERVER MO
+    username: 'Steve_092',             // PALITAN MO NG UNIQUE NAME
+    auth: 'offline',                   // 'microsoft' kung online-mode=true
+    version: '1.20.1',                 // SAKTO SA SERVER VERSION MO
+    checkTimeoutInterval: 60000,       // 60s timeout para di ma-disconnect agad
     hideErrors: false
   })
 
   bot.on('login', () => {
     console.log('[BOT] Successfully logged in!')
+    reconnecting = false
   })
   
   bot.on('spawn', () => {
-    console.log('[BOT] Bot spawned in server! Starting anti-AFK...')
-    
-    // Wait 10 seconds bago gumalaw para di ma-flag ng anticheat
-    setTimeout(() => {
-      console.log('[BOT] Anti-AFK activated')
-      
-      // MABAGAL NA JUMP - Every 3 minutes lang para safe
-      setInterval(() => {
-        if (bot.entity) {
-          bot.setControlState('jump', true)
-          setTimeout(() => bot.setControlState('jump', false), 250)
-        }
-      }, 180000) // 3 minutes
-      
-      // SOBRANG SLOW NA LOOK - konting lingon lang
-      setInterval(() => {
-        if (bot.entity) {
-          const yaw = bot.entity.yaw + (Math.random() - 0.5) * 0.2
-          const pitch = (Math.random() - 0.5) * 0.1
-          bot.look(yaw, pitch, false)
-        }
-      }, 45000) // 45 seconds
-      
-      // Random sneak minsan para mukhang player
-      setInterval(() => {
-        if (bot.entity && Math.random() > 0.7) {
-          bot.setControlState('sneak', true)
-          setTimeout(() => bot.setControlState('sneak', false), 2000)
-        }
-      }, 120000) // 2 minutes, 30% chance lang
-      
-    }, 10000) // 10 sec delay bago mag-start
+    console.log('[BOT] Bot spawned! ZERO MOVEMENT MODE - tatayo lang')
+    // WALA NANG SETINTERVAL - WALANG GALAW PARA DI MA-KICK
+    // Si BaoHost di naman nagki-kick pag naka-stand lang
   })
 
   bot.on('kicked', (reason) => {
-    console.log('[BOT] Kicked from server:', reason)
-    console.log('[BOT] Reconnecting in 60 seconds...')
-    setTimeout(startBot, 60000) // 1 min delay para di ma-spam
+    console.log('[BOT] Kicked:', reason)
+    destroyBot()
+    console.log('[BOT] Reconnecting in 2 minutes...')
+    setTimeout(() => {
+      reconnecting = false
+      startBot()
+    }, 120000) // 2 mins delay para di ma-spam ban
   })
   
   bot.on('error', (err) => {
-    console.log('[BOT] Error occurred:', err.message)
-    console.log('[BOT] Reconnecting in 60 seconds...')
-    setTimeout(startBot, 60000)
+    console.log('[BOT] Error:', err.message)
+    destroyBot()
+    setTimeout(() => {
+      reconnecting = false
+      startBot()
+    }, 120000)
   })
   
   bot.on('end', (reason) => {
     console.log('[BOT] Disconnected:', reason)
-    console.log('[BOT] Reconnecting in 60 seconds...')
-    setTimeout(startBot, 60000)
+    destroyBot()
+    setTimeout(() => {
+      reconnecting = false
+      startBot()
+    }, 120000)
   })
 }
 
-// Start mo bot
-startBot()
+function destroyBot() {
+  if (bot) {
+    try {
+      bot.quit()
+      bot.end()
+    } catch (e) {}
+    bot = null
+  }
+}
 
-// Express server para kay Render - REQUIRED ITO
+// Start bot after 5 sec para sure na wala nang old instance
+setTimeout(startBot, 5000)
+
+// Express server para kay Render
 const app = express()
 const PORT = process.env.PORT || 3000
 
 app.get('/', (req, res) => {
   res.json({ 
-    status: 'online',
-    message: 'BaoHost AFK Bot is running!',
+    status: bot ? 'connected' : 'connecting',
+    botName: 'Steve_092',
     uptime: process.uptime()
   })
 })
 
 app.listen(PORT, () => {
-  console.log(`[SERVER] Keep-alive server running on port ${PORT}`)
+  console.log(`[SERVER] Keep-alive running on port ${PORT}`)
+})
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('[BOT] Shutting down...')
+  destroyBot()
+  process.exit(0)
 })
