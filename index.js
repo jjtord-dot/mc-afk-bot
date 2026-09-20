@@ -13,7 +13,7 @@ function startBot() {
   bot = mineflayer.createBot({
     host: 'aegis-smp.playwithbao.com', 
     port: 35215,                       
-    username: 'Steve_092',             // PALITAN MO NG UNIQUE NAME
+    username: 'Starter',             // PALITAN MO NG UNIQUE NAME
     auth: 'offline',                   // 'microsoft' kung online-mode=true
     version: '1.20.1',                 // SAKTO SA SERVER VERSION MO
     checkTimeoutInterval: 60000,       // 60s timeout para di ma-disconnect agad
